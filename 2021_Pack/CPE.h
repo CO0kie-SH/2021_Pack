@@ -2,6 +2,9 @@
 #include <iostream>
 #include <Windows.h>
 
+#define DllPath "C:\\Users\\CY-Pro13\\source\\repos\\2021_Pack\\Release\\Dll_ShellCode.dll"
+
+
 typedef struct _MyPE			//PE文件解析
 {
 	DWORD	FileSize;			//文件大小
@@ -22,10 +25,11 @@ public:
 	~CPE();
 
 	BOOL ReadFile(LPCSTR Path);
-	BOOL CheckPE(LPCBYTE pMem);
+	BOOL CheckPE(LPCBYTE pMem, LPMyPE pPE = 0);
 	BOOL CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut = 0);
 	BOOL AddSection(LPMyPE pPE = 0, LPCSTR SavePath = 0);
 	BOOL SaveFile(LPCSTR FilePath, LPMyPE pPE, PBYTE buff);
+	BOOL LoadDLL(LPMyPE pPE);
 protected:
 	DWORD MathOffset(DWORD Addr, DWORD Size);		//计算偏移
 	PIMAGE_NT_HEADERS NtHeader(LPCBYTE pFile);

@@ -67,8 +67,9 @@ BOOL CPE::ReadFile(LPCSTR Path)
 	return CheckPE(mpFile);					//初始化PE
 }
 
-BOOL CPE::CheckPE(LPCBYTE pMem)
+BOOL CPE::CheckPE(LPCBYTE pMem, LPMyPE pPE)
 {
+	if (pPE == 0) pPE = &this->mPE;
 	auto pNT = NtHeader(pMem);				//PE头
 	if (NtHeader(mpFile)->Signature != IMAGE_NT_SIGNATURE)
 		return PrintStr("PE头错误。");
@@ -89,13 +90,13 @@ BOOL CPE::CheckPE(LPCBYTE pMem)
 		pOH.SizeOfHeaders, pMem + pOH.SizeOfHeaders, pOH.DllCharacteristics);
 
 	//保存PE结构体内存地址
-	mPE.NumberOfSections = &pFH.NumberOfSections;
-	mPE.SizeOfHeaders = &pOH.SizeOfHeaders;
-	mPE.SizeOfImage = &pOH.SizeOfImage;
-	mPE.SectionAlignment = &pOH.SectionAlignment;
-	mPE.FileAlignment = &pOH.FileAlignment;
-	mPE.AddressOfEntryPoint = &pOH.AddressOfEntryPoint;
-	return CheckSection(&mPE);
+	pPE->NumberOfSections = &pFH.NumberOfSections;
+	pPE->SizeOfHeaders = &pOH.SizeOfHeaders;
+	pPE->SizeOfImage = &pOH.SizeOfImage;
+	pPE->SectionAlignment = &pOH.SectionAlignment;
+	pPE->FileAlignment = &pOH.FileAlignment;
+	pPE->AddressOfEntryPoint = &pOH.AddressOfEntryPoint;
+	return CheckSection(pPE);
 }
 
 BOOL CPE::CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut)
@@ -126,7 +127,7 @@ BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
 	PBYTE buff = (PBYTE)HeapAlloc(mHeap, HEAP_ZERO_MEMORY, 200);
 	if (!buff)
 		return PrintStr("无法创建堆控制");
-	memcpy(buff, "\x90\x90\x90\x90", 4);
+	memcpy(buff, "\xE9\x90\x90\x90\x90", 5);
 
 	//获取区段头表
 	auto pSEC = IMAGE_FIRST_SECTION(NtHeader((LPCBYTE)pPE->FileMemAddr));
@@ -151,6 +152,9 @@ BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
 	*pPE->NumberOfSections = *pPE->NumberOfSections + 1;
 	*pPE->SizeOfImage = pSEC_NEW.VirtualAddress + pSEC_NEW.Misc.VirtualSize;
 	*pPE->AddressOfEntryPoint = pSEC_NEW.VirtualAddress;
+	
+	//加壳代码
+	LoadDLL(pPE);
 
 	//保存文件
 	if (SavePath)
@@ -177,6 +181,20 @@ BOOL CPE::SaveFile(LPCSTR FilePath, LPMyPE pPE, PBYTE buff)
 	printf("  写入文件：%s\n", dwRet ? "成功" : "失败");
 	CheckSection(pPE);
 	return dwRet;
+}
+
+BOOL CPE::LoadDLL(LPMyPE pPE)
+{
+	// 以不执行 DllMain 的方式将 Dll 装载到内存中
+	auto Base = (DWORD)LoadLibraryExA(DllPath, NULL, DONT_RESOLVE_DLL_REFERENCES);
+	if (!Base)
+		return PrintStr("插件加载失败。");
+
+	//初始化内存DLL
+	MyPE lPE = { 0,Base };
+	CheckPE((LPCBYTE)Base, &lPE);
+
+	return 0;
 }
 
 DWORD CPE::MathOffset(DWORD Addr, DWORD Size)
