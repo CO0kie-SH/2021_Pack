@@ -19,8 +19,6 @@ CPE::CPE() :mpFile(0)
 CPE::~CPE()
 {
 	HeapDestroy(mHeap);
-	if (mpFile)
-		free(mpFile);
 }
 
 
@@ -48,7 +46,7 @@ BOOL CPE::ReadFile(LPCSTR Path)
 	}
 
 	// 申请堆空间
-	mpFile = (LPBYTE)malloc(FileSize * sizeof(BYTE));
+	auto mpFile = (LPBYTE)HeapAlloc(mHeap, 0, FileSize * sizeof(BYTE));
 	if(!mpFile)
 		return PrintStr("分配内存错误。", FileHandle);
 
@@ -64,22 +62,20 @@ BOOL CPE::ReadFile(LPCSTR Path)
 
 	//初始化PE结构体
 	mPE = { FileSize,(DWORD)mpFile };
-	return CheckPE(mpFile);					//初始化PE
+	return CheckPE(mpFile, &mPE);			//初始化PE
 }
 
 BOOL CPE::CheckPE(LPCBYTE pMem, LPMyPE pPE)
 {
-	if (pPE == 0) pPE = &this->mPE;
 	auto pNT = NtHeader(pMem);				//PE头
-	if (NtHeader(mpFile)->Signature != IMAGE_NT_SIGNATURE)
+	if (pNT->Signature != IMAGE_NT_SIGNATURE)
 		return PrintStr("PE头错误。");
-
 
 	auto& pFH = pNT->FileHeader;			//文件头
 	printf("  文件头：\n区段的个数：%u\n扩展头大小：0x%X\n文件的标志：0x%X\n",
 		pFH.NumberOfSections, pFH.SizeOfOptionalHeader, pFH.Characteristics);
 
-	auto& pOH = pNT->OptionalHeader;
+	auto& pOH = pNT->OptionalHeader;		//扩展头
 	printf("  扩展头：\n魔术字：0x%X\n代码大小：0x%X\n入口点处：【0x%X】\n\n" \
 		"代码段起始：0x%X\n数据段起始：0x%X\n镜像大小：【0x%lX】\n" \
 		"默认加载基址：0x%lX\n内存对齐：0x%lX\n文件对齐：0x%lX\n" \
@@ -102,6 +98,7 @@ BOOL CPE::CheckPE(LPCBYTE pMem, LPMyPE pPE)
 BOOL CPE::CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut)
 {
 	printf("  区段列表如下：\n");
+
 	//获取区段头表
 	auto pSEC = IMAGE_FIRST_SECTION(NtHeader((LPCBYTE)pPE->FileMemAddr));
 	BYTE name[9] = {};
@@ -116,6 +113,7 @@ BOOL CPE::CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut)
 	}
 	if (pOut) *pOut = pSEC;
 	--pSEC;
+
 	// 计算最后一个段的大小
 	DWORD dwSize = pSEC->PointerToRawData + pSEC->SizeOfRawData;
 	return dwSize == pPE->FileSize;
@@ -124,10 +122,14 @@ BOOL CPE::CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut)
 BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
 {
 	if (pPE == 0)	pPE = &this->mPE;
-	PBYTE buff = (PBYTE)HeapAlloc(mHeap, HEAP_ZERO_MEMORY, 200);
+
+	//初始化新区段
+	auto buff = (PBYTE)HeapAlloc(mHeap, HEAP_ZERO_MEMORY, 0x200);
 	if (!buff)
 		return PrintStr("无法创建堆控制");
 	memcpy(buff, "\xE9\x90\x90\x90\x90", 5);
+	pPE->dwNewSECMemAddr = (DWORD)buff;
+	pPE->dwNewSECSize = 0x200;
 
 	//获取区段头表
 	auto pSEC = IMAGE_FIRST_SECTION(NtHeader((LPCBYTE)pPE->FileMemAddr));
@@ -148,13 +150,15 @@ BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
 	pSEC_NEW.Characteristics = 0xE00000E0;
 	memcpy(pSEC_NEW.Name, ".CO0kie", 8);
 
+	//加壳代码
+	if (!LoadDLL(pPE, &pSEC_NEW))
+		return PrintStr("加载壳插件失败。");
+
 	//设置镜像属性
 	*pPE->NumberOfSections = *pPE->NumberOfSections + 1;
 	*pPE->SizeOfImage = pSEC_NEW.VirtualAddress + pSEC_NEW.Misc.VirtualSize;
 	*pPE->AddressOfEntryPoint = pSEC_NEW.VirtualAddress;
-	
-	//加壳代码
-	LoadDLL(pPE);
+
 
 	//保存文件
 	if (SavePath)
@@ -168,33 +172,55 @@ BOOL CPE::SaveFile(LPCSTR FilePath, LPMyPE pPE, PBYTE buff)
 	HANDLE FileHandle = CreateFileA(FilePath, GENERIC_WRITE, 0,
 		NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (FileHandle == INVALID_HANDLE_VALUE)
-		return PrintStr("文件打开错误。");
+		return PrintStr("新文件打开错误。");
 
 	//写入文件
 	DWORD dwLen = 0, dwLen2 = 0, dwRet = 0;
 	WriteFile(FileHandle, (LPVOID)pPE->FileMemAddr, pPE->FileSize, &dwLen, 0);
-	WriteFile(FileHandle, (LPVOID)buff, 0x200, &dwLen2, 0);
+	WriteFile(FileHandle, (LPVOID)pPE->dwNewSECMemAddr, pPE->dwNewSECSize, &dwLen2, 0);
 	CloseHandle(FileHandle);
 
 	//判断成功
-	dwRet = dwLen + dwLen2 == pPE->FileSize + 0x200;
+	dwRet = dwLen + dwLen2 == pPE->FileSize + pPE->dwNewSECSize;
 	printf("  写入文件：%s\n", dwRet ? "成功" : "失败");
 	CheckSection(pPE);
 	return dwRet;
 }
 
-BOOL CPE::LoadDLL(LPMyPE pPE)
+BOOL CPE::LoadDLL(LPMyPE pPE, PIMAGE_SECTION_HEADER pNewSEC)
 {
 	// 以不执行 DllMain 的方式将 Dll 装载到内存中
-	auto Base = (DWORD)LoadLibraryExA(DllPath, NULL, DONT_RESOLVE_DLL_REFERENCES);
+	auto Base = (LPCBYTE)LoadLibraryExA(DllPath, NULL, DONT_RESOLVE_DLL_REFERENCES);
 	if (!Base)
 		return PrintStr("插件加载失败。");
 
-	//初始化内存DLL
-	MyPE lPE = { 0,Base };
-	CheckPE((LPCBYTE)Base, &lPE);
+	//获取头表信息
+	auto pOH = NtHeader(Base)->OptionalHeader;
+	auto pSEC = IMAGE_FIRST_SECTION(NtHeader(Base));
+	
+	//创建缓冲区
+	if (pPE->dwNewSECMemAddr)
+		HeapFree(mHeap, 0, (LPVOID)pPE->dwNewSECMemAddr);
 
-	return 0;
+	DWORD dwSize = pSEC->Misc.VirtualSize;
+	auto pMem = (LPBYTE)HeapAlloc(mHeap, 0, dwSize);
+	auto pDLL = Base + pSEC->VirtualAddress;
+	if (!pMem || dwSize < 0x200)
+		return PrintStr("分配新区段堆空间错误。");
+	memcpy(pMem, pDLL, pSEC->Misc.VirtualSize);
+
+	//调整计算偏移
+	DWORD start = (DWORD)GetProcAddress((HMODULE)Base, "start") - (DWORD)Base;
+	start -= pSEC->VirtualAddress + 27;
+	memcpy(pMem + 15, &pNewSEC->VirtualAddress, 4);
+	memcpy(pMem + 23, &start, 4);
+
+	//调整PE结构
+	pPE->dwNewSECMemAddr = (DWORD)pMem;
+	pPE->dwNewSECSize = dwSize;
+	pNewSEC->Misc.VirtualSize = dwSize;
+	pNewSEC->SizeOfRawData = dwSize;
+ 	return TRUE;
 }
 
 DWORD CPE::MathOffset(DWORD Addr, DWORD Size)

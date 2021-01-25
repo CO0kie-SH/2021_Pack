@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #define DllPath "C:\\Users\\CY-Pro13\\source\\repos\\2021_Pack\\Release\\Dll_ShellCode.dll"
+#define DllPath2 "D:\\cacheD\\mini_pack\\mini_pack - v0.01 拷贝区段\\test\\mini_stub.dll"
 
 
 typedef struct _MyPE			//PE文件解析
@@ -15,6 +16,9 @@ typedef struct _MyPE			//PE文件解析
 	LPDWORD	SectionAlignment;	//内存对齐
 	LPDWORD	FileAlignment;		//文件对齐
 	LPDWORD	AddressOfEntryPoint;//起始地址
+
+	DWORD	dwNewSECMemAddr;	//新区段内存位置
+	DWORD	dwNewSECSize;		//新区段大小
 }MyPE, * LPMyPE;
 
 
@@ -25,11 +29,11 @@ public:
 	~CPE();
 
 	BOOL ReadFile(LPCSTR Path);
-	BOOL CheckPE(LPCBYTE pMem, LPMyPE pPE = 0);
+	BOOL CheckPE(LPCBYTE pMem, LPMyPE pPE);
 	BOOL CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut = 0);
 	BOOL AddSection(LPMyPE pPE = 0, LPCSTR SavePath = 0);
 	BOOL SaveFile(LPCSTR FilePath, LPMyPE pPE, PBYTE buff);
-	BOOL LoadDLL(LPMyPE pPE);
+	BOOL LoadDLL(LPMyPE pPE, PIMAGE_SECTION_HEADER pNewSEC);
 protected:
 	DWORD MathOffset(DWORD Addr, DWORD Size);		//计算偏移
 	PIMAGE_NT_HEADERS NtHeader(LPCBYTE pFile);
