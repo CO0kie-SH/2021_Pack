@@ -92,31 +92,31 @@ BOOL CPE::CheckPE(LPCBYTE pMem, LPMyPE pPE)
 	pPE->SectionAlignment = &pOH.SectionAlignment;
 	pPE->FileAlignment = &pOH.FileAlignment;
 	pPE->AddressOfEntryPoint = &pOH.AddressOfEntryPoint;
-	return CheckSection(pPE);
+	return CheckSection(pMem);
 }
 
-BOOL CPE::CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut)
+BOOL CPE::CheckSection(LPCBYTE Base)
 {
 	printf("  区段列表如下：\n");
 
 	//获取区段头表
-	auto pSEC = IMAGE_FIRST_SECTION(NtHeader((LPCBYTE)pPE->FileMemAddr));
+	auto pNT = NtHeader(Base);
+	auto pSEC = IMAGE_FIRST_SECTION(pNT);
 	BYTE name[9] = {};
-	for (WORD i = 0, max = *pPE->NumberOfSections; i < max; i++, ++pSEC)
+	for (WORD i = 0, max = pNT->FileHeader.NumberOfSections; i < max; i++, ++pSEC)
 	{
-		if (pOut) continue;
 		memcpy(name, pSEC->Name, 8);
 		printf("%u\t%s\tVA：%08lX\tVSize：%08lX\t" \
 			"RVA：%08lX\tRSize：%08lX\t特征：%lX\n",
 			i + 1, name, pSEC->VirtualAddress, pSEC->Misc.VirtualSize,
 			pSEC->PointerToRawData, pSEC->SizeOfRawData, pSEC->Characteristics);
 	}
-	if (pOut) *pOut = pSEC;
 	--pSEC;
 
 	// 计算最后一个段的大小
-	DWORD dwSize = pSEC->PointerToRawData + pSEC->SizeOfRawData;
-	return dwSize == pPE->FileSize;
+	//DWORD dwSize = pSEC->PointerToRawData + pSEC->SizeOfRawData;
+	//return dwSize == pPE->FileSize;
+	return TRUE;
 }
 
 BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
@@ -132,7 +132,8 @@ BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
 	pPE->dwNewSECSize = 0x200;
 
 	//获取区段头表
-	auto pSEC = IMAGE_FIRST_SECTION(NtHeader((LPCBYTE)pPE->FileMemAddr));
+	auto pNT = NtHeader((LPCBYTE)pPE->FileMemAddr);
+	auto pSEC = IMAGE_FIRST_SECTION(pNT);
 	auto& pSEC_NEW = pSEC[*pPE->NumberOfSections];		//得到新表头
 	auto& pSEC_END = pSEC[*pPE->NumberOfSections - 1];	//得到末尾表头
 
@@ -158,7 +159,8 @@ BOOL CPE::AddSection(LPMyPE pPE, LPCSTR SavePath)
 	*pPE->NumberOfSections = *pPE->NumberOfSections + 1;
 	*pPE->SizeOfImage = pSEC_NEW.VirtualAddress + pSEC_NEW.Misc.VirtualSize;
 	*pPE->AddressOfEntryPoint = pSEC_NEW.VirtualAddress;
-
+	// 关闭随机基址，因为目前是不支持的
+	pNT->OptionalHeader.DllCharacteristics = 0x8100;
 
 	//保存文件
 	if (SavePath)
@@ -183,7 +185,7 @@ BOOL CPE::SaveFile(LPCSTR FilePath, LPMyPE pPE, PBYTE buff)
 	//判断成功
 	dwRet = dwLen + dwLen2 == pPE->FileSize + pPE->dwNewSECSize;
 	printf("  写入文件：%s\n", dwRet ? "成功" : "失败");
-	CheckSection(pPE);
+	CheckSection((LPCBYTE)pPE->FileMemAddr);
 	return dwRet;
 }
 
@@ -197,23 +199,39 @@ BOOL CPE::LoadDLL(LPMyPE pPE, PIMAGE_SECTION_HEADER pNewSEC)
 	//获取头表信息
 	auto pOH = NtHeader(Base)->OptionalHeader;
 	auto pSEC = IMAGE_FIRST_SECTION(NtHeader(Base));
+	CheckSection(Base);
 	
 	//创建缓冲区
 	if (pPE->dwNewSECMemAddr)
 		HeapFree(mHeap, 0, (LPVOID)pPE->dwNewSECMemAddr);
-
 	DWORD dwSize = pSEC->Misc.VirtualSize;
 	auto pMem = (LPBYTE)HeapAlloc(mHeap, 0, dwSize);
 	auto pDLL = Base + pSEC->VirtualAddress;
 	if (!pMem || dwSize < 0x200)
 		return PrintStr("分配新区段堆空间错误。");
-	memcpy(pMem, pDLL, pSEC->Misc.VirtualSize);
 
-	//调整计算偏移
+	//设置全局变量
+	DWORD setdw = (DWORD)GetProcAddress((HMODULE)Base, "setgdw"),
+		oldOEP = *pPE->AddressOfEntryPoint,
+		dwSEC = pNewSEC->VirtualAddress;
+	_asm
+	{
+		push oldOEP;
+		push dwSEC;
+		call setdw;
+		add esp, 0x8;
+	}
+	
+	//设置偏移
 	DWORD start = (DWORD)GetProcAddress((HMODULE)Base, "start") - (DWORD)Base;
-	start -= pSEC->VirtualAddress + 27;
-	memcpy(pMem + 15, &pNewSEC->VirtualAddress, 4);
-	memcpy(pMem + 23, &start, 4);
+	start -= pSEC->VirtualAddress + 7;
+	memcpy(pMem, pDLL, pSEC->Misc.VirtualSize);
+	memcpy(pMem, "\x8B\xDC\xE9", 3);
+	memcpy(pMem+3, &start, 4);
+
+	//修复壳DLL的重定位
+	if (!FixDllStub(Base, pMem, pNewSEC->VirtualAddress))
+		return 0;
 
 	//调整PE结构
 	pPE->dwNewSECMemAddr = (DWORD)pMem;
@@ -221,6 +239,49 @@ BOOL CPE::LoadDLL(LPMyPE pPE, PIMAGE_SECTION_HEADER pNewSEC)
 	pNewSEC->Misc.VirtualSize = dwSize;
 	pNewSEC->SizeOfRawData = dwSize;
  	return TRUE;
+}
+
+BOOL CPE::FixDllStub(LPCBYTE Base, LPCBYTE pMem, DWORD dwNewSEC)
+{
+	puts("\n 壳重定位如下：");
+	auto pNT = NtHeader(Base);
+	auto pSEC = IMAGE_FIRST_SECTION(pNT);
+	auto& relocTB = pSEC[3];
+
+	//得到重定位表
+	auto RelocTable = (PIMAGE_BASE_RELOCATION)(Base + relocTB.VirtualAddress);
+	DWORD dwKuai = 0, dwCount = 0;
+	while (RelocTable->SizeOfBlock)
+	{
+		typedef struct _TYPEOFFSET
+		{
+			SHORT Offset : 12;
+			SHORT Type : 4;
+		}TYPEOFFSET, * PTYPEOFFSET;
+
+		// 3. 计算出重定位项数组的起始位置以及数组的元素个数
+		PTYPEOFFSET TypeOffset = (PTYPEOFFSET)(RelocTable + 1);
+		dwCount = (RelocTable->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / 2;
+		printf("%lu\t0x%lX\t0x%lX/%lu\n", ++dwKuai, RelocTable->VirtualAddress, dwCount, dwCount);
+		for (DWORD i = 0; i < dwCount; i++)
+		{
+			if (TypeOffset[i].Type == 3)
+			{
+				auto& offset = TypeOffset[i];
+				DWORD RVA = (DWORD)(offset.Offset + RelocTable->VirtualAddress);
+				auto oVA = (DWORD*)(RVA + Base);
+				auto nVA = (DWORD*)(RVA - pSEC->VirtualAddress + pMem);
+				if (*oVA == 0) continue;
+				//printf("\t%lu\tRVA=%5lX\tVA=0x%p\tdw=0x%lX\n", i + 1, RVA, oVA, *oVA);
+				//计算新的偏移
+				DWORD ndw = *oVA - (DWORD)Base - pSEC->VirtualAddress + 0x400000 + dwNewSEC;
+				//printf("\t\t新dw=%lX\tVA=0x%p\n", ndw, nVA);
+				*nVA = ndw;
+			}
+		}
+		RelocTable = (PIMAGE_BASE_RELOCATION)((DWORD)RelocTable + RelocTable->SizeOfBlock);
+	}
+	return TRUE;
 }
 
 DWORD CPE::MathOffset(DWORD Addr, DWORD Size)

@@ -2,8 +2,8 @@
 //
 
 #include "CPE.h"
-#define FPath "D:\\cacheD\\202101\\写壳001\\demo.exe"
-#define FPath2 "D:\\cacheD\\202101\\写壳001\\demo.new.exe"
+#define FPath "D:\\cacheD\\202101\\demo.exe"
+#define FPath2 "D:\\cacheD\\202101\\demo.new.exe"
 
 int main()
 {

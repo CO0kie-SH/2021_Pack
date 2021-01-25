@@ -9,7 +9,12 @@ public:
 
 private:
 	void Go();
+	DWORD GetBase(DWORD k32);
+
+private:
 	DWORD mEbp;
-	DWORD mBase;
+	DWORD mKer32;
+	DWORD mPack;
+	
 };
 

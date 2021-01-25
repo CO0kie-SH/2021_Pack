@@ -2,8 +2,7 @@
 #include <iostream>
 #include <Windows.h>
 
-#define DllPath "C:\\Users\\CY-Pro13\\source\\repos\\2021_Pack\\Release\\Dll_ShellCode.dll"
-#define DllPath2 "D:\\cacheD\\mini_pack\\mini_pack - v0.01 拷贝区段\\test\\mini_stub.dll"
+#define DllPath "D:\\cacheD\\202101\\2021_Pack\\Release\\Dll_ShellCode.dll"
 
 
 typedef struct _MyPE			//PE文件解析
@@ -30,10 +29,11 @@ public:
 
 	BOOL ReadFile(LPCSTR Path);
 	BOOL CheckPE(LPCBYTE pMem, LPMyPE pPE);
-	BOOL CheckSection(LPMyPE pPE, PIMAGE_SECTION_HEADER* pOut = 0);
+	BOOL CheckSection(LPCBYTE Base);
 	BOOL AddSection(LPMyPE pPE = 0, LPCSTR SavePath = 0);
 	BOOL SaveFile(LPCSTR FilePath, LPMyPE pPE, PBYTE buff);
 	BOOL LoadDLL(LPMyPE pPE, PIMAGE_SECTION_HEADER pNewSEC);
+	BOOL FixDllStub(LPCBYTE Base, LPCBYTE pMem, DWORD dwNewSEC);
 protected:
 	DWORD MathOffset(DWORD Addr, DWORD Size);		//计算偏移
 	PIMAGE_NT_HEADERS NtHeader(LPCBYTE pFile);
