@@ -1,6 +1,6 @@
 #include "CPE.h"
 
-BOOL PrintStr(LPCSTR Str, HANDLE FileHandle = 0)
+BOOL PrintStr(LPCSTR Str, HANDLE FileHandle)
 {
 	puts(Str);
 	if (FileHandle)

@@ -4,6 +4,7 @@
 
 #define DllPath "D:\\cacheD\\202101\\2021_Pack\\Release\\Dll_ShellCode.dll"
 
+BOOL PrintStr(LPCSTR Str, HANDLE FileHandle = 0);
 
 typedef struct _MyPE			//PEÎÄ¼þ½âÎö
 {
