@@ -158,10 +158,10 @@
  /**************************************
     Memory routines
  **************************************/
-#include <stdlib.h>   /* malloc, calloc, free */
+//#include <stdlib.h>   /* malloc, calloc, free */
 #define ALLOCATOR(n,s) calloc(n,s)
 #define FREEMEM        free
-#include <string.h>   /* memset, memcpy */
+//#include <string.h>   /* memset, memcpy */
 #define MEM_INIT       memset
 
 
@@ -549,7 +549,7 @@ _last_literals:
         if ((limitedOutput) && (((char*)op - dest) + lastRun + 1 + ((lastRun + 255 - RUN_MASK) / 255) > (U32)maxOutputSize)) return 0;   /* Check output limit */
         if (lastRun >= (int)RUN_MASK) { *op++ = (RUN_MASK << ML_BITS); lastRun -= RUN_MASK; for (; lastRun >= 255; lastRun -= 255) *op++ = 255; *op++ = (BYTE)lastRun; }
         else *op++ = (BYTE)(lastRun << ML_BITS);
-        memcpy(op, anchor, iend - anchor);
+        gAPI->pmemcpy(op, anchor, iend - anchor);
         op += iend - anchor;
     }
 
@@ -685,13 +685,13 @@ char* LZ4API  LZ4_slideInputBuffer(void* LZ4_Data)
             if ((size_t)(lz4ds->hashTable[nH]) < deltaLimit) lz4ds->hashTable[nH] = 0;
             else lz4ds->hashTable[nH] -= (U32)deltaLimit;
         }
-        memcpy((void*)(lz4ds->bufferStart), (const void*)(lz4ds->nextBlock - 64 KB), 64 KB);
+        gAPI->pmemcpy((void*)(lz4ds->bufferStart), (const void*)(lz4ds->nextBlock - 64 KB), 64 KB);
         lz4ds->base = lz4ds->bufferStart;
         lz4ds->nextBlock = lz4ds->base + 64 KB;
     }
     else
     {
-        memcpy((void*)(lz4ds->bufferStart), (const void*)(lz4ds->nextBlock - 64 KB), 64 KB);
+        gAPI->pmemcpy((void*)(lz4ds->bufferStart), (const void*)(lz4ds->nextBlock - 64 KB), 64 KB);
         lz4ds->nextBlock -= delta;
         lz4ds->base -= delta;
     }
@@ -787,7 +787,7 @@ FORCE_INLINE int LZ4_decompress_generic(
                 if ((!endOnInput) && (cpy != oend)) goto _output_error;       /* Error : block decoding must stop exactly there */
                 if ((endOnInput) && ((ip + length != iend) || (cpy > oend))) goto _output_error;   /* Error : input must be consumed */
             }
-            memcpy(op, ip, length);
+            gAPI->pmemcpy(op, ip, length);
             ip += length;
             op += length;
             break;                                       /* Necessarily EOF, due to parsing restrictions */

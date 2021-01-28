@@ -1,5 +1,5 @@
 #pragma once
-
+#include "CData.h"
 /*
    LZ4 - Fast LZ compression algorithm
    Header File

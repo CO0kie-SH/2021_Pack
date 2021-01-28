@@ -91,9 +91,9 @@ BOOL CPack4::UnOldBase()
 	for (DWORD i = pNTnew->FileHeader.NumberOfSections; i >0; )
 	{
 		auto& SEC = pSECnew[--i];
-		LPCH VA = oldBase + SEC.VirtualAddress,
-			FOA = newBase + SEC.PointerToRawData;
-		API->pmemcpy(VA, FOA, SEC.SizeOfRawData);
+		LPCH VA = oldBase + SEC.VirtualAddress,		//VA
+			FOA = newBase + SEC.PointerToRawData;	//FOA
+		API->pmemcpy(VA, FOA, SEC.SizeOfRawData);	//RSize
 	}
 	// 重定位表
 	RVA = pOHnew->DataDirectory[5].VirtualAddress;
