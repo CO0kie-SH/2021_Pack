@@ -1,30 +1,6 @@
 #include "pch.h"
 #include "CPack4.h"
 
-//BOOL CPack::LoadAPI()
-//{
-//	HMODULE ke32 = 0;
-//	__asm
-//	{
-//		mov eax, dword ptr fs : [0x30]
-//		mov eax, dword ptr[eax + 0x0C]
-//		mov eax, dword ptr[eax + 0x0C]
-//		mov eax, dword ptr[eax]
-//		mov eax, dword ptr[eax]
-//		mov eax, dword ptr[eax + 0x18]
-//		mov ke32, eax;
-//	}
-//	auto GetProc = (PGetProcAddress)MyGetProcAddress((DWORD)ke32, gszGetProcAddress);
-//	API.ke32 = ke32;
-//	API.pGetProcAddress = GetProc;
-//	API.pLoadLibraryA = (PLoadLibraryA)GetProc(ke32, gszLoadLibraryA);
-//	API.pGetModuleHandleA = (PGetModuleHandleA)GetProc(ke32, gszGetModuleHandleA);
-//	API.pExitProcess = (PExitProcess)GetProc(ke32, gszExitProcess);
-//	API.ntdll = API.pLoadLibraryA(gszNTDLL);
-//	API.pmemcpy = (Pmemcpy)GetProc(ke32, gszmemcpy);
-//	API.pVirtualAlloc = (PVirtualAlloc)GetProc(ke32, gszVirtualAlloc);
-//	API.pVirtualProtect = (PVirtualProtect)GetProc(ke32, gszVirtualProtect);
-//}
 
 BOOL FixREL(DWORD Base, DWORD ModBase, DWORD RVA, DWORD dwTEXT)
 {
@@ -79,8 +55,9 @@ BOOL FixREL(DWORD Base, DWORD ModBase, DWORD RVA, DWORD dwTEXT)
 
 CPack4::CPack4()
 {
-	//if (!LoadAPI())	return;
-	oldBase = (DWORD)GetModuleHandleA(0);
+	API = gAPI;
+	mHeap = API->gHeap;
+	oldBase = (DWORD)API->pGetModuleHandleA(0);
 	auto pNT = NtHeader(oldBase);
 	mOH = &pNT->OptionalHeader;
 
@@ -96,7 +73,7 @@ CPack4::CPack4()
 
 CPack4::~CPack4()
 {
-	ExitProcess(0);
+	API->pExitProcess(0);
 }
 
 BOOL CPack4::UnOldBase()
@@ -110,13 +87,13 @@ BOOL CPack4::UnOldBase()
 	LPCH oldBase = (LPCH)this->oldBase, newBase = (LPCH)this->newBase;
 
 	//还原镜像
-	ZeroMemory(oldBase + pSECold->VirtualAddress, pSECold->Misc.VirtualSize);
+	API->pmemset(oldBase + pSECold->VirtualAddress, 0, pSECold->Misc.VirtualSize);
 	for (DWORD i = pNTnew->FileHeader.NumberOfSections; i >0; )
 	{
 		auto& SEC = pSECnew[--i];
 		LPCH VA = oldBase + SEC.VirtualAddress,
 			FOA = newBase + SEC.PointerToRawData;
-		memcpy(VA, FOA, SEC.SizeOfRawData);
+		API->pmemcpy(VA, FOA, SEC.SizeOfRawData);
 	}
 	// 重定位表
 	RVA = pOHnew->DataDirectory[5].VirtualAddress;
@@ -135,7 +112,7 @@ BOOL CPack4::UnOldBase()
 BOOL CPack4::FixIAT(DWORD RVA)
 {
 	DWORD ImageBase = oldBase;
-	HANDLE hHeap = GetProcessHeap();
+	HANDLE hHeap = mHeap;
 	// 修复IAT实际上就是，遍历导入表，并加载DLL，获取函数地址，填充IAT
 	auto ImportTable = (PIMAGE_IMPORT_DESCRIPTOR)(ImageBase + RVA);
 	// 遍历导入表，导入表以一个全0 的结构结尾
@@ -143,7 +120,7 @@ BOOL CPack4::FixIAT(DWORD RVA)
 	{
 		// 计算出导入表对应DLL的名称，并通过LoadLibrary进行加载
 		CHAR* DllName = (CHAR*)(ImportTable->Name + ImageBase);
-		HMODULE hMdule = LoadLibraryA(DllName);
+		HMODULE hMdule = API->pLoadLibraryA(DllName);
 		
 		// 加载失败则返回
 		if (!hMdule)	return 0;
@@ -155,34 +132,34 @@ BOOL CPack4::FixIAT(DWORD RVA)
 		while (IAT->u1.Function)
 		{
 			DWORD OldProtect = 0, FunctionAddr = 0;
-			VirtualProtect(IAT, 4, PAGE_READWRITE, &OldProtect);
+			API->pVirtualProtect(IAT, 4, PAGE_READWRITE, &OldProtect);
 
 			// 如果最高位为0，那么保存的就是名称结构体的RVA
 			if ((IAT->u1.Function & 0x80000000) == 0)
 			{
 				auto Name = (PIMAGE_IMPORT_BY_NAME)(IAT->u1.Function + ImageBase);
-				FunctionAddr = (DWORD)GetProcAddress(hMdule, Name->Name);
+				FunctionAddr = (DWORD)API->pGetProcAddress(hMdule, Name->Name);
 			}
 			else
 			{
 				// 如果没有名字，那么低16位保存的就是序号
-				FunctionAddr = (DWORD)GetProcAddress(hMdule, (LPCSTR)(IAT->u1.Ordinal & 0xFFFF));
+				FunctionAddr = (DWORD)API->pGetProcAddress(hMdule, (LPCSTR)(IAT->u1.Ordinal & 0xFFFF));
 			}
 
 			// 加密函数地址，在这里将函数地址 - 1
 			FunctionAddr -= 1;
 
 			// 申请一块空间，用于保存解密的代码
-			LPCH Addr = (LPCH)HeapAlloc(hHeap, 0, 10);
+			LPCH Addr = (LPCH)API->pHeapAlloc(hHeap, 0, 10);
 			if (!Addr)	return 0;
 
 			// 替换表格
-			memcpy(Addr, OpCode, 10);
+			API->pmemcpy(Addr, OpCode, 10);
 			*(LPDWORD)&Addr[1] = FunctionAddr;
 			IAT->u1.Function = (DWORD)Addr;
 
-			VirtualProtect(IAT, 4, OldProtect, &OldProtect);
-			VirtualProtect(Addr, 10, PAGE_EXECUTE_READWRITE, &OldProtect);
+			API->pVirtualProtect(IAT, 4, OldProtect, &OldProtect);
+			API->pVirtualProtect(Addr, 10, PAGE_EXECUTE_READWRITE, &OldProtect);
 			IAT++;
 		}
 

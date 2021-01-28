@@ -6,7 +6,7 @@ BOOL Lz4Compress(LPMyLz4 pLZ4)
 {
 	int oldSize, newSize, isCompress = pLZ4->Compress;
 	char* pBuff, * oldAddr, * newAddr = 0;
-	auto hHeap = GetProcessHeap();
+	auto hHeap = gAPI->gHeap;
 
 	if (isCompress)	//压缩
 	{
@@ -23,7 +23,7 @@ BOOL Lz4Compress(LPMyLz4 pLZ4)
 		newSize = tmp[0];
 	}
 	//1. 获取预估的压缩后的字节数:
-	pBuff = (PCH)HeapAlloc(hHeap, 0, newSize);
+	pBuff = (PCH)gAPI->pHeapAlloc(hHeap, 0, newSize);
 	if (!pBuff)	return 0;
 
 	if (isCompress)
@@ -32,17 +32,17 @@ BOOL Lz4Compress(LPMyLz4 pLZ4)
 			oldAddr,/*压缩前的数据*/
 			pBuff,	/*压缩后的数据*/
 			oldSize	/*文件原始大小*/);
-		newAddr = (PCH)HeapAlloc(hHeap, 0, newSize + 8);
+		newAddr = (PCH)gAPI->pHeapAlloc(hHeap, 0, newSize + 8);
 		if (newAddr)	//分配地址成功
 		{
 			LPDWORD size = (LPDWORD)newAddr;
 			size[0] = oldSize;
 			size[1] = newSize;
-			memcpy(newAddr + 8, pBuff, newSize);
+			gAPI->pmemcpy(newAddr + 8, pBuff, newSize);
 			pLZ4->newAddr = newAddr;
 			pLZ4->newSize = newSize;
 		}
-		HeapFree(hHeap, 0, pBuff);
+		gAPI->pHeapFree(hHeap, 0, pBuff);
 	}
 	else
 	{
@@ -82,4 +82,44 @@ DWORD MyGetProcAddress(DWORD Module, LPCSTR FunName)
 			return FuncTable[OrdinalTable[i]] + Module;
 	}
 	return -1;
+}
+
+PMyWAPI gAPI;
+
+BOOL LoadAPI()
+{
+	HMODULE ke32 = 0;
+	MyWAPI API;
+	__asm
+	{
+		mov eax, dword ptr fs : [0x30]
+		mov eax, dword ptr[eax + 0x0C]
+		mov eax, dword ptr[eax + 0x0C]
+		mov eax, dword ptr[eax]
+		mov eax, dword ptr[eax]
+		mov eax, dword ptr[eax + 0x18]
+		mov ke32, eax;
+	}
+	auto GetProc = (PGetProcAddress)MyGetProcAddress((DWORD)ke32, gszGetProcAddress);
+	API.ke32 = ke32;
+	API.pGetProcAddress = GetProc;
+	API.pLoadLibraryA = (PLoadLibraryA)GetProc(ke32, gszLoadLibraryA);
+	API.pGetModuleHandleA = (PGetModuleHandleA)GetProc(ke32, gszGetModuleHandleA);
+	API.pExitProcess = (PExitProcess)GetProc(ke32, gszExitProcess);
+	API.ntdll = API.pLoadLibraryA(gszNTDLL);
+	API.pmemcpy = (Pmemcpy)GetProc(API.ntdll, gszmemcpy);
+	API.pmemset = (Pmemset)GetProc(API.ntdll, gszmemset);
+	//页保护
+	API.pVirtualAlloc = (PVirtualAlloc)GetProc(ke32, gszVirtualAlloc);
+	API.pVirtualProtect = (PVirtualProtect)GetProc(ke32, gszVirtualProtect);
+	//堆控制
+	API.pGetProcessHeap = (PGetProcessHeap)GetProc(ke32, gszGetProcessHeap);
+	API.gHeap = API.pGetProcessHeap();
+	API.pHeapAlloc = (PHeapAlloc)GetProc(ke32, gszHeapAlloc);
+	API.pHeapFree = (PHeapFree)GetProc(ke32, gszHeapFree);
+
+
+	gAPI=(PMyWAPI)API.pHeapAlloc(API.gHeap, 0, sizeof(MyWAPI));
+	if (!gAPI) API.pExitProcess(0);
+	API.pmemcpy(gAPI, &API, sizeof(MyWAPI));
 }

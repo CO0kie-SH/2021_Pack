@@ -6,19 +6,20 @@
 class CPack4
 {
 public:
-	CPack4();
-	~CPack4();
+	NOINLine CPack4();
+	NOINLine ~CPack4();
 
-	BOOL UnOldBase();
-	BOOL FixIAT(DWORD RVA);
+	NOINLine BOOL UnOldBase();
+	NOINLine BOOL FixIAT(DWORD RVA);
 protected:
 
-	PIMAGE_NT_HEADERS NtHeader(DWORD pMem);
+	NOINLine PIMAGE_NT_HEADERS NtHeader(DWORD pMem);
 private:
 	LPMyWAPI	API;
 	DWORD	oldBase;
 	DWORD	newBase;
 	LPCH	oldAddr;
+	HANDLE	mHeap;
 	PIMAGE_OPTIONAL_HEADER32 mOH;
 };
 

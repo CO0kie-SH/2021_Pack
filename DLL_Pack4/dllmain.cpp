@@ -4,6 +4,7 @@
 
 #pragma comment(linker, "/merge:.data=.text") 
 #pragma comment(linker, "/merge:.rdata=.text")
+//#pragma comment(linker, "/merge:.idata=.text")
 //#pragma comment(linker, "/merge:.reloc=.text")
 #pragma comment(linker, "/section:.text,RWE")
 
@@ -21,9 +22,8 @@ EXTERN_C
 	// 创建一个裸函数作为新的 OEP，不会生成任何的其他代码
 	__declspec(dllexport) void start()
 	{
-		//if (Base != 0x400000)
-			//return;
-		CPack4 pack4;
+		if (LoadAPI())
+			CPack4 pack4;
 	}
 }
 
