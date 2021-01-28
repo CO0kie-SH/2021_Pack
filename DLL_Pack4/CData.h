@@ -102,8 +102,9 @@ typedef struct _MyLz4	//Ñ¹Ëõ½á¹¹Ìå
 
 #define NOINLine __declspec(noinline) 
 
-//EXTERN_C __declspec(dllexport) void* GetBase();
+EXTERN_C __declspec(dllexport) void* GetBase();
 extern __declspec(dllexport) NOINLine BOOL Lz4Compress(LPMyLz4 pLZ4);
+extern __declspec(dllexport) NOINLine void XorMem(PBYTE oldAddr, PBYTE newAddr, DWORD Size, DWORD Key);
 extern NOINLine BOOL LoadAPI();
 extern PMyWAPI gAPI;
 

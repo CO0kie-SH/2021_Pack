@@ -118,8 +118,16 @@ BOOL LoadAPI()
 	API.pHeapAlloc = (PHeapAlloc)GetProc(ke32, gszHeapAlloc);
 	API.pHeapFree = (PHeapFree)GetProc(ke32, gszHeapFree);
 
-
 	gAPI=(PMyWAPI)API.pHeapAlloc(API.gHeap, 0, sizeof(MyWAPI));
 	if (!gAPI) API.pExitProcess(0);
 	API.pmemcpy(gAPI, &API, sizeof(MyWAPI));
+}
+
+void XorMem(PBYTE oldAddr, PBYTE newAddr, DWORD Size, DWORD Key)
+{
+	PBYTE bkey = (PBYTE)&Key;
+	for (DWORD i = 0; i < Size; i++)
+	{
+		newAddr[i] = oldAddr[i] ^ bkey[0] ^ bkey[1] ^ bkey[2] ^ bkey[3];
+	}
 }

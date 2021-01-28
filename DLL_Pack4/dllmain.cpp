@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "CPack4.h"
 
+
 #pragma comment(linker, "/merge:.data=.text") 
 #pragma comment(linker, "/merge:.rdata=.text")
 //#pragma comment(linker, "/merge:.idata=.text")
@@ -9,16 +10,16 @@
 #pragma comment(linker, "/section:.text,RWE")
 
 
-//HMODULE ghModule = 0;
+HMODULE ghModule = 0;
 
 // 去除括号内所有函数的名称粉碎机制，方便后续的调用和修改
-EXTERN_C
+extern "C"
 {
-	// 创建一个裸函数作为新的 OEP，不会生成任何的其他代码
-	//__declspec(dllexport) void* GetBase()
-	//{
-	//	return ghModule;
-	//}
+	__declspec(dllexport) void* GetBase()
+	{
+		return ghModule;
+	}
+
 	// 创建一个裸函数作为新的 OEP，不会生成任何的其他代码
 	__declspec(dllexport) void start()
 	{
@@ -35,7 +36,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-		//ghModule = hModule;
+		ghModule = hModule;
 		start();
 		break;
 	case DLL_THREAD_ATTACH:
