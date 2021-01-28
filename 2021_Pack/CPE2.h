@@ -13,7 +13,7 @@ BOOL PrintStr(LPCSTR Str, HANDLE FileHandle = 0);
 class CPE2
 {
 public:
-	CPE2(LPCBYTE pFile);
+	CPE2(LPCBYTE pFile, DWORD Size);
 	~CPE2();
 
 	BOOL Lz4Mem();
@@ -21,7 +21,8 @@ private:
 	PIMAGE_NT_HEADERS NtHeader(LPCBYTE pFile);
 private:
 	DWORD				pFile;
-	HMODULE				pPack;
+	DWORD				mFileSize;
+	HMODULE				mpPack;
 	PIMAGE_NT_HEADERS	mpNT;
 	PIMAGE_OPTIONAL_HEADER32 mpOH;
 };
