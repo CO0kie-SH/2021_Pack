@@ -1,30 +1,21 @@
 ﻿// dllmain.cpp : 定义 DLL 应用程序的入口点。
 #include "pch.h"
-
-#define NOINLine __declspec(noinline) 
-#define DLLEXport __declspec(dllexport) 
+#include "CPack6.h"
 
 #pragma comment(linker, "/merge:.data=.text") 
-//#pragma comment(linker, "/merge:.rdata=.text")
+#pragma comment(linker, "/merge:.rdata=.text")
 //#pragma comment(linker, "/section:.rdata,RW")
 #pragma comment(linker, "/section:.text,RWE")
 
-// 获取当前ESP
-__declspec(naked) DWORD GetESP()
+
+EXTERN_C DLLEXport NOINLine void go()
 {
-	__asm
-	{
-		mov eax, [esp];
-		ret
-	}
+	MessageBoxA(0, "CO0kie", 0, 0);
+	ExitProcess(0);
 }
 
-NOINLine PIMAGE_NT_HEADERS NtHeader(DWORD Dos)
-{
-	return (PIMAGE_NT_HEADERS)(Dos +
-		((PIMAGE_DOS_HEADER)Dos)->e_lfanew);
-}
 
+// 去除括号内所有函数的名称粉碎机制，方便后续的调用和修改
 extern "C"
 {
 	NOINLine BOOL /*__stdcall*/ FixLOC(DWORD OldImageBase, DWORD NewImageBase,
@@ -65,19 +56,18 @@ extern "C"
 		return TRUE;
 	}
 
-	NOINLine DLLEXport DWORD GetBase6(DWORD Base)
+	NOINLine DWORD GetBase6(DWORD Base)
 	{
-		DWORD lBase = 0;
-		if (Base)
-			lBase = Base & 0xFFFFF000;
-		else
-			__asm
+		DWORD lBase;
+		if (!Base)
+		__asm
 		{
 			call tag_esp;
 		tag_esp:
 			pop eax;
-			mov lBase, lBase;
+			mov Base, eax;
 		}
+		lBase = Base & 0xFFFFF000;
 		while (lBase > 0x1000)
 		{
 			if (
@@ -92,12 +82,15 @@ extern "C"
 	// 导出入口
 	NOINLine __declspec(dllexport) void start()
 	{
-		auto nowBase = GetBase6(GetESP()),
-			newBase = (DWORD)VirtualAlloc(NULL, 0x6000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-		MessageBoxA(0, "CO0kie", 0, 0);
+		auto nowBase = GetBase6(0),
+			newBase = (DWORD)VirtualAlloc(NULL, 0x5000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		if (newBase == 0)	return;
+		memcpy((PCH)newBase, (PCH)nowBase, 0x5000);
+		FixLOC(0x10000000, newBase, 0x4000, 0x1000, 0x4000);
+		DWORD oep = (DWORD)go - nowBase + newBase;
+		_asm call oep;
 	}
 }
-
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -107,6 +100,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+		ghModule = hModule;
 		start();
 		break;
     case DLL_THREAD_ATTACH:

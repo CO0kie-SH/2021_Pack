@@ -143,11 +143,13 @@
     <ClCompile Include="CPE.cpp" />
     <ClCompile Include="CPE2.cpp" />
     <ClCompile Include="CPE5.cpp" />
+    <ClCompile Include="CPE6.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CPE.h" />
     <ClInclude Include="CPE2.h" />
     <ClInclude Include="CPE5.h" />
+    <ClInclude Include="CPE6.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
