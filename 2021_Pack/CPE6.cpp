@@ -97,7 +97,7 @@ BOOL CPE6::SetPE(LPBYTE pDLL, LPBYTE pEXE, LPMyLz4 lz4)
 	DWORD tmp = (DWORD)GetBaseDLL();
 	tmp = (DWORD)GetProcAddress((HMODULE)tmp, "start") - tmp;
 	nOH->AddressOfEntryPoint = tmp;
-	nOH->DllCharacteristics = 0x8100;
+	//nOH->DllCharacteristics = 0x8100;
 
 	BOOL bSave = SaveFile6("..\\Debug\\demo.6.exe", pHeap, newSize);
 	printf("±£´æ£º%s\n", bSave ? "³É¹¦" : "Ê§°Ü");

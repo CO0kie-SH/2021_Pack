@@ -72,6 +72,7 @@ CWind6::~CWind6()
 
 DWORD CWind6::Create()
 {
+	CDbg6 dbg6;
 	MSG            msg;//消息结构
 	WNDCLASS       wc;//窗口类型结构
 	HWND           hWnd;//窗口句柄

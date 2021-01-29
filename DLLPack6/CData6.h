@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include "lz4_6.h"
+#include "CDbg6.h"
 
 #define NOINLine __declspec(noinline) 
 #define DLLEXport __declspec(dllexport) 

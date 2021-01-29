@@ -157,6 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CData6.h" />
+    <ClInclude Include="CDbg6.h" />
     <ClInclude Include="CPack6.h" />
     <ClInclude Include="CWind6.h" />
     <ClInclude Include="framework.h" />
@@ -165,6 +166,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CData6.cpp" />
+    <ClCompile Include="CDbg6.cpp" />
     <ClCompile Include="CPack6.cpp" />
     <ClCompile Include="CWind6.cpp" />
     <ClCompile Include="dllmain.cpp" />

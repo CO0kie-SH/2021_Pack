@@ -33,6 +33,9 @@
     <ClInclude Include="CWind6.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CDbg6.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -51,6 +54,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="CWind6.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CDbg6.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,12 +1,15 @@
 #include "pch.h"
 #include "CPack6.h"
-
+#include <iostream>
 
 CPack6::CPack6()
 	:nowBase(0), pFile(0)
 {
-	LPCH base = (LPCH)GetModuleHandleA(0);
+	CDbg6 dbg6;
 	CWind6 wind6;
+	LPCH base = (LPCH)GetModuleHandleA(0);
+	printf("当前随机基址：0x%p\n", base);
+
 	MyLz4 lz4 = { FALSE,base + 0x6000 };
 
 	DWORD key1 = 1, key2 = 2,
@@ -33,6 +36,7 @@ CPack6::~CPack6()
 
 BOOL CPack6::LoadEXE6()
 {
+	CDbg6 dbg6;
 	// 判断文件是否合法
 	auto pBase = (PIMAGE_DOS_HEADER)this->pFile;
 	if (pBase == 0 ||
@@ -82,6 +86,7 @@ BOOL CPack6::LoadEXE6()
 
 BOOL CPack6::FixIAT(DWORD RVA)
 {
+	CDbg6 dbg6;
 	DWORD ImageBase = nowBase;
 	HANDLE hHeap = GetProcessHeap();
 	// 修复IAT实际上就是，遍历导入表，并加载DLL，获取函数地址，填充IAT
