@@ -5,7 +5,7 @@
 
 
 #include "..\DLL_Pack4\CData.h"
-#pragma comment(lib,"..\\Debug\\DLL_Pack4.lib")
+//#pragma comment(lib,"..\\Debug\\DLL_Pack4.lib")
 //#pragma comment(lib,"..\\Release\\Dll1.lib")
 
 BOOL PrintStr(LPCSTR Str, HANDLE FileHandle = 0);

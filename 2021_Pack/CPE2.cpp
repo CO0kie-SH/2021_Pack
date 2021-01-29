@@ -76,17 +76,17 @@ CPE2::~CPE2()
 
 BOOL CPE2::Lz4Mem()
 {
-	MyLz4 lz4 = {
-		TRUE,(LPCH)pFile,0,mFileSize
-	};
-	BOOL bCom = Lz4Compress(&lz4);
-	int src_file_size = lz4.oldSize;
-	MyLz4 lz42 = {
-		FALSE,lz4.newAddr
-	};
-	BOOL bCom2 = Lz4Compress(&lz42);
-	SaveFile("D:\\cacheD\\202101\\2021_Pack\\Debug\\demo.lz4",
-		lz4.newAddr, lz4.newSize + 8);
+	//MyLz4 lz4 = {
+	//	TRUE,(LPCH)pFile,0,mFileSize
+	//};
+	//BOOL bCom = Lz4Compress(&lz4);
+	//int src_file_size = lz4.oldSize;
+	//MyLz4 lz42 = {
+	//	FALSE,lz4.newAddr
+	//};
+	//BOOL bCom2 = Lz4Compress(&lz42);
+	//SaveFile("D:\\cacheD\\202101\\2021_Pack\\Debug\\demo.lz4",
+	//	lz4.newAddr, lz4.newSize + 8);
 	return 0;
 }
 
