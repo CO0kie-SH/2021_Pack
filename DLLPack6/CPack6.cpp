@@ -6,13 +6,15 @@ CPack6::CPack6()
 	:nowBase(0), pFile(0)
 {
 	LPCH base = (LPCH)GetModuleHandleA(0);
+	CWind6 wind6;
 	MyLz4 lz4 = { FALSE,base + 0x6000 };
 
-	DWORD key1 = 0, key2 = 1,
+	DWORD key1 = 1, key2 = 2,
 		bRet = Lz4Compress6(&lz4);
 	if (bRet == 0)	return;
 
-	XorMem6((PBYTE)lz4.newAddr, (PBYTE)lz4.newAddr, lz4.newSize, 0x34333231);
+	key2 = wind6.Create();
+	XorMem6((PBYTE)lz4.newAddr, (PBYTE)lz4.newAddr, lz4.newSize, key2);
 
 	this->pFile = lz4.newAddr;
 	LoadEXE6();

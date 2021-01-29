@@ -1,5 +1,5 @@
 #pragma once
-#include "CData6.h"
+#include "CWind6.h"
 
 class CPack6
 {
