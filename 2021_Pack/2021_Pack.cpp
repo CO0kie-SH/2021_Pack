@@ -1,10 +1,11 @@
 ﻿// 2021_Pack.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
 #include <iostream>
+#include "CPE6.h"
 
 
 int main()
 {
     std::cout << "Hello World!\n";
-	//CPE6 pe6;
+	CPE6 pe6;
 }

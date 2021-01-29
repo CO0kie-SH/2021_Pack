@@ -4,15 +4,8 @@
 
 #pragma comment(linker, "/merge:.data=.text") 
 #pragma comment(linker, "/merge:.rdata=.text")
-//#pragma comment(linker, "/section:.rdata,RW")
 #pragma comment(linker, "/section:.text,RWE")
 
-
-EXTERN_C DLLEXport NOINLine void go()
-{
-	MessageBoxA(0, "CO0kie", 0, 0);
-	ExitProcess(0);
-}
 
 
 // 去除括号内所有函数的名称粉碎机制，方便后续的调用和修改
@@ -82,13 +75,24 @@ extern "C"
 	// 导出入口
 	NOINLine __declspec(dllexport) void start()
 	{
-		auto nowBase = GetBase6(0),
-			newBase = (DWORD)VirtualAlloc(NULL, 0x5000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-		if (newBase == 0)	return;
-		memcpy((PCH)newBase, (PCH)nowBase, 0x5000);
-		FixLOC(0x10000000, newBase, 0x4000, 0x1000, 0x4000);
-		DWORD oep = (DWORD)go - nowBase + newBase;
-		_asm call oep;
+		DWORD dwEAX, dwEDI, dwEDX;
+		_asm mov dwEAX, eax;
+		_asm mov dwEDI, edi;
+		_asm mov dwEDX, edx;
+		if (dwEAX == 0x10000000 && dwEDI == 0x1)
+			return;		//Release调试
+		if (dwEAX && dwEDX == 0x1)
+			return;		//Debug调试
+
+		auto nowBase = GetBase6(0);
+		FixLOC(0x10000000, nowBase, 0x5000, 0x1000, 0x5000);
+		CPack6 pack6;
+		//auto newBase = (DWORD)VirtualAlloc(NULL, 0x5000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		//if (newBase == 0)	return;
+		//memcpy((PCH)newBase, (PCH)nowBase, 0x5000);
+		//FixLOC(0x10000000, newBase, 0x4000, 0x1000, 0x4000);
+		//DWORD oep = (DWORD)go - nowBase + newBase;
+		//_asm call oep;
 	}
 }
 
