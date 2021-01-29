@@ -9,6 +9,21 @@
 //#pragma comment(linker, "/section:.rdata,RW")
 #pragma comment(linker, "/section:.text,RWE")
 
+// 获取当前ESP
+__declspec(naked) DWORD GetESP()
+{
+	__asm
+	{
+		mov eax, [esp];
+		ret
+	}
+}
+
+NOINLine PIMAGE_NT_HEADERS NtHeader(DWORD Dos)
+{
+	return (PIMAGE_NT_HEADERS)(Dos +
+		((PIMAGE_DOS_HEADER)Dos)->e_lfanew);
+}
 
 extern "C"
 {
@@ -50,9 +65,35 @@ extern "C"
 		return TRUE;
 	}
 
+	NOINLine DLLEXport DWORD GetBase6(DWORD Base)
+	{
+		DWORD lBase = 0;
+		if (Base)
+			lBase = Base & 0xFFFFF000;
+		else
+			__asm
+		{
+			call tag_esp;
+		tag_esp:
+			pop eax;
+			mov lBase, lBase;
+		}
+		while (lBase > 0x1000)
+		{
+			if (
+				((PIMAGE_DOS_HEADER)lBase)->e_magic == IMAGE_DOS_SIGNATURE &&
+				NtHeader(lBase)->Signature == IMAGE_NT_SIGNATURE)
+				return lBase;
+			lBase -= 0x1000;
+		}
+		return 0;
+	}
+
 	// 导出入口
 	NOINLine __declspec(dllexport) void start()
 	{
+		auto nowBase = GetBase6(GetESP()),
+			newBase = (DWORD)VirtualAlloc(NULL, 0x6000, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 		MessageBoxA(0, "CO0kie", 0, 0);
 	}
 }
