@@ -90,29 +90,21 @@ BOOL CPack6::FixIAT(DWORD RVA)
 {
 	CDbg6 dbg6;
 	DWORD ImageBase = nowBase;
-	HANDLE hHeap = GetProcessHeap();
-	// 修复IAT实际上就是，遍历导入表，并加载DLL，获取函数地址，填充IAT
+	HANDLE hHeap = GetProcessHeap();	//获取默认堆
 	auto ImportTable = (PIMAGE_IMPORT_DESCRIPTOR)(ImageBase + RVA);
-	// 遍历导入表，导入表以一个全0 的结构结尾
 	while (ImportTable->Name != 0)
 	{
-		// 计算出导入表对应DLL的名称，并通过LoadLibrary进行加载
 		CHAR* DllName = (CHAR*)(ImportTable->Name + ImageBase);
 		HMODULE hMdule = LoadLibraryA(DllName);
 
-		// 加载失败则返回
 		if (!hMdule)	return 0;
 
-		// 获取到 IAT 的地址，计算出相应的序号或名称
 		auto IAT = (PIMAGE_THUNK_DATA)(ImportTable->FirstThunk + ImageBase);
-
-		// 遍历 IAT 表，判断其中保存的函数是序号的还是名称的
 		while (IAT->u1.Function)
 		{
 			DWORD OldProtect = 0, FunctionAddr = 0;
 			VirtualProtect(IAT, 4, PAGE_READWRITE, &OldProtect);
 
-			// 如果最高位为0，那么保存的就是名称结构体的RVA
 			if ((IAT->u1.Function & 0x80000000) == 0)
 			{
 				auto Name = (PIMAGE_IMPORT_BY_NAME)(IAT->u1.Function + ImageBase);
@@ -120,19 +112,14 @@ BOOL CPack6::FixIAT(DWORD RVA)
 			}
 			else
 			{
-				// 如果没有名字，那么低16位保存的就是序号
 				FunctionAddr = (DWORD)GetProcAddress(hMdule, (LPCSTR)(IAT->u1.Ordinal & 0xFFFF));
 			}
+			FunctionAddr -= 0x1234;
 
-			// 加密函数地址，在这里将函数地址 - 1
-			FunctionAddr -= 1;
-
-			// 申请一块空间，用于保存解密的代码
-			LPCH Addr = (LPCH)HeapAlloc(hHeap, 0, 10);
+			LPCH Addr = (LPCH)HeapAlloc(hHeap, 0, 13);
 			if (!Addr)	return 0;
 
-			// 替换表格
-			memcpy(Addr, OpCode, 10);
+			memcpy(Addr, gIAT, 13);
 			*(LPDWORD)&Addr[1] = FunctionAddr;
 			IAT->u1.Function = (DWORD)Addr;
 

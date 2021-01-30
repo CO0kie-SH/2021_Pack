@@ -32,7 +32,7 @@ extern DLLEXport NOINLine void XorMem6(PBYTE oldAddr, PBYTE newAddr, DWORD Size,
 extern HMODULE ghModule;
 
 // 解密函数的时候使用的 OPCODE
-constexpr const char* OpCode = "\xB8\x00\x00\x00\x00\x83\xC0\x01\xFF\xE0";
+constexpr const char* gIAT = "\xB8\x00\x00\x00\x00\x05\x34\x12\x00\x00\x50\xC3";
 
 class CData6
 {
