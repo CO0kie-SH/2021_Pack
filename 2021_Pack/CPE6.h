@@ -2,8 +2,8 @@
 
 #include <iostream>
 #include "..\DLLPack6\CData6.h"
-//#pragma comment(lib,"..\\Debug\\DLLPack5.lib")
-#pragma comment(lib,"..\\Release\\DLLPack6.lib")
+#pragma comment(lib,"..\\Debug\\DLLPack6.lib")
+//#pragma comment(lib,"..\\Release\\DLLPack6.lib")
 
 
 class CPE6

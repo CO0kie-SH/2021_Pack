@@ -5,6 +5,7 @@
 
 CDbg6::CDbg6()
 {
+	CheckVMfile();
 	bool bRet = TRUE;
 
 	// 查询PEB
@@ -60,11 +61,25 @@ CDbg6::CDbg6()
 	if(status && NULL != bProcessDebugFlag)
 	{
 		MessageBoxA(0, "NtQueryInformationProcess被调试0x1F。", 0, 0);
-		ExitProcess(5);
-		ExitThread(6);
+		ExitProcess(7);
+		ExitThread(8);
 	}
 }
 
 CDbg6::~CDbg6()
 {
+}
+
+DWORD CDbg6::CheckVMfile()
+{
+	DWORD bRet = GetFileAttributesA("C:\\Program Files\\VMware\\VMware Tools");
+	if (bRet != INVALID_FILE_ATTRIBUTES)
+	{
+		if (IDOK == MessageBoxA(0, "存在虚拟机文件。", 0, MB_OKCANCEL))
+		{
+			ExitProcess(9);
+			ExitThread(10);
+		}
+	}
+	return bRet;
 }

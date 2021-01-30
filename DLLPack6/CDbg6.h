@@ -6,6 +6,7 @@ public:
 	CDbg6();
 	~CDbg6();
 
+	DWORD CheckVMfile();
 private:
 
 };
