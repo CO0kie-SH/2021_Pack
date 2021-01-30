@@ -102,9 +102,7 @@ BOOL CPE6::SetPE(LPBYTE pDLL, LPBYTE pEXE, LPMyLz4 lz4)
 	nOH->AddressOfEntryPoint = tmp;
 	//nOH->DllCharacteristics = 0x8100;
 
-	PCCH savePath = "..\\Debug\\demo.6.exe";
-	DeleteFileA(savePath);
-	BOOL bSave = SaveFile6(savePath, pHeap, newSize);
+	BOOL bSave = SaveFile6("..\\Debug\\demo.6.exe", pHeap, newSize);
 	printf("±£´æ£º%s\n", bSave ? "³É¹¦" : "Ê§°Ü");
 	return bSave;
 }

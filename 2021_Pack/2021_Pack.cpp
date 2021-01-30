@@ -8,5 +8,4 @@ int main()
 {
     std::cout << "Hello World!\n";
 	CPE6 pe6;
-	system("pause");
 }

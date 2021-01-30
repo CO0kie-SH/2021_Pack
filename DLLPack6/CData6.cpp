@@ -102,7 +102,7 @@ void XorMem6(PBYTE oldAddr, PBYTE newAddr, DWORD Size, DWORD Key)
 	PBYTE bkey = (PBYTE)&Key;
 	for (DWORD i = 0; i < Size; i++)
 	{
-		newAddr[i] = ((((oldAddr[i] ^ bkey[0]) ^ bkey[1]) ^ bkey[2]) ^ bkey[3]) ^ 0x15;
+		newAddr[i] = oldAddr[i] ^ bkey[0] ^ bkey[1] ^ bkey[2] ^ bkey[3] ^ 0x15;
 	}
 }
 
