@@ -157,6 +157,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AES.h" />
     <ClInclude Include="CData6.h" />
     <ClInclude Include="CDbg6.h" />
     <ClInclude Include="CPack6.h" />
@@ -166,6 +167,7 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AES.cpp" />
     <ClCompile Include="CData6.cpp" />
     <ClCompile Include="CDbg6.cpp" />
     <ClCompile Include="CPack6.cpp" />

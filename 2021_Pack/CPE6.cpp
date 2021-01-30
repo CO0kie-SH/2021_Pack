@@ -16,7 +16,10 @@ CPE6::CPE6()
 	// 加密文件
 	auto pXorMem = (PBYTE)HeapAlloc(GetProcessHeap(), 0, SizeEXE);
 	if (pXorMem == 0)	return;
+
+
 	XorMem6(pMemEXE, pXorMem, SizeEXE, 0x34333231);
+	
 
 	// 压缩文件
 	MyLz4 lz4 = {
@@ -48,13 +51,13 @@ BOOL CPE6::SetPE(LPBYTE pDLL, LPBYTE pEXE, LPMyLz4 lz4)
 	auto fOH = &fNT->OptionalHeader;
 
 	DWORD dwfSEC = fNT->FileHeader.NumberOfSections,
-		dllSize = dOH->SizeOfImage - dOH->BaseOfCode,
+		dllSize = 0x7000 - dOH->BaseOfCode,
 		newHead = fOH->SizeOfHeaders,
 		//新大小 = 头大小 + 壳镜像大小 + 8字 + 压缩包
 		newSize = newHead + dllSize + 8 + lz4->newSize,
 		//新区段 = 新大小 - 头大小
 		newTEXT = newSize - newHead;
-		
+	
 
 	// 申请空间
 	auto pNew = (LPCH)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newSize),

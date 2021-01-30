@@ -1,10 +1,13 @@
 #pragma once
 #include <Windows.h>
 #include "lz4_6.h"
+#include "AES.h"
 #include "CDbg6.h"
 
-#define NOINLine __declspec(noinline) 
-#define DLLEXport __declspec(dllexport) 
+#define NOINLine __declspec(noinline)
+#define DLLEXport __declspec(dllexport)
+
+
 
 // 压缩结构体
 typedef struct _MyLz4	//压缩结构体
@@ -18,6 +21,7 @@ typedef struct _MyLz4	//压缩结构体
 
 
 EXTERN_C DLLEXport void* GetBaseDLL();
+EXTERN_C DLLEXport void TextAES(BOOL un, LPBYTE mem, int Len, DWORD key1);
 EXTERN_C NOINLine BOOL /*__stdcall*/ FixLOC(DWORD OldImageBase, DWORD NewImageBase,
 	DWORD RVA, DWORD newTEXT, DWORD MaxSize);
 extern DLLEXport BOOL ReadFile6(LPCSTR Path, DWORD* pFileSize);

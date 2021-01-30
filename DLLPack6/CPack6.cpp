@@ -10,7 +10,7 @@ CPack6::CPack6()
 	LPCH base = (LPCH)GetModuleHandleA(0);
 	printf("当前随机基址：0x%p\n", base);
 
-	MyLz4 lz4 = { FALSE,base + 0x6000 };
+	MyLz4 lz4 = { FALSE,base + 0x7000 };
 
 	DWORD key1 = 1, key2 = 2,
 		bRet = Lz4Compress6(&lz4);
@@ -18,8 +18,10 @@ CPack6::CPack6()
 
 	key2 = wind6.Create();
 	XorMem6((PBYTE)lz4.newAddr, (PBYTE)lz4.newAddr, lz4.newSize, key2);
+	//TextAES(FALSE, (PBYTE)lz4.newAddr, lz4.newSize, 0x34333231);
 
 	this->pFile = lz4.newAddr;
+
 	LoadEXE6();
 }
 

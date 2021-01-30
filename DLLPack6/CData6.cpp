@@ -3,9 +3,30 @@
 
 HMODULE ghModule = 0;
 
+
 DLLEXport void* GetBaseDLL()
 {
 	return ghModule;
+}
+
+DLLEXport void TextAES(BOOL un, LPBYTE mem, int Len, DWORD key1)
+{
+	unsigned char key[] =
+	{
+		0x2b, 0x7e, 0x15, 0x16,
+		0x28, 0xae, 0xd2, 0xa6,
+		0xab, 0xf7, 0x15, 0x88,
+		0x09, 0xcf, 0x4f, 0x3c
+	};
+
+	//XorMem6(key, key, 16, key1);
+
+	AES aes(key);
+	if (un)
+		aes.Cipher((void*)mem, Len);
+	else
+		aes.InvCipher((void*)mem, Len);
+	return;
 }
 
 DLLEXport NOINLine PIMAGE_NT_HEADERS NtHeader(DWORD Dos)
