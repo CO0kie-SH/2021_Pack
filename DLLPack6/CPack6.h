@@ -9,7 +9,9 @@ public:
 
 	NOINLine BOOL LoadEXE6();
 	NOINLine BOOL FixIAT(DWORD RVA);
+	NOINLine BOOL CreateCMD();
 private:
 	LPCH pFile;
+	int Size;
 	DWORD nowBase;
 };
